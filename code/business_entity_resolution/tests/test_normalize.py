@@ -5,7 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.normalize import normalize_text, transform_all, transform_file
+from src.normalize import (
+    apply_equivalences,
+    load_equivalences,
+    normalize_text,
+    transform_all,
+    transform_file,
+)
 
 
 class NormalizeTextTests(unittest.TestCase):
@@ -20,6 +26,15 @@ class NormalizeTextTests(unittest.TestCase):
     def test_empty_values(self) -> None:
         self.assertEqual(normalize_text(None), "")
         self.assertEqual(normalize_text("..."), "")
+
+    def test_token_mappings_are_bounded_and_can_drop_tokens(self) -> None:
+        self.assertEqual(
+            apply_equivalences(
+                "smith and sons corp",
+                {"and": "", "corp": "corporation"},
+            ),
+            "smith sons corporation",
+        )
 
 
 class TransformTests(unittest.TestCase):
@@ -72,6 +87,45 @@ class TransformTests(unittest.TestCase):
             self.assertTrue((root / "report.json").is_file())
             self.assertTrue((root / "processed/test/test_source3.tsv").is_file())
         self.assertEqual(summary["total_rows"], 6)
+
+    def test_transform_all_applies_a_mined_equivalence_file(self) -> None:
+        relative_files = (
+            "train/train_source1.tsv",
+            "train/train_source2.tsv",
+            "train/train_source3.tsv",
+            "test/test_source1.tsv",
+            "test/test_source2.tsv",
+            "test/test_source3.tsv",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data_dir = root / "dataset"
+            for relative in relative_files:
+                self._write_source(data_dir / relative)
+            equivalences = root / "equivalences.tsv"
+            with equivalences.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+                writer.writerow(("field", "variant", "canonical"))
+                writer.writerow(("name", "corp", "corporation"))
+                writer.writerow(("address", "rd", "road"))
+
+            loaded = load_equivalences(equivalences)
+            self.assertEqual(loaded["name"]["corp"], "corporation")
+            summary = transform_all(
+                data_dir=data_dir,
+                output_dir=root / "final",
+                report_path=root / "report.json",
+                equivalence_path=equivalences,
+                max_rows_per_file=1,
+            )
+            with (root / "final/train/train_source1.tsv").open(
+                "r", encoding="utf-8", newline=""
+            ) as handle:
+                row = next(csv.DictReader(handle, delimiter="\t"))
+
+        self.assertEqual(row["clean_name"], "acme corporation")
+        self.assertEqual(row["clean_address"], "7 lake road")
+        self.assertTrue(summary["normalization"]["semantic_rewrites"])
 
 
 if __name__ == "__main__":

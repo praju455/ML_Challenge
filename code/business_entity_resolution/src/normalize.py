@@ -15,7 +15,7 @@ import shutil
 import sys
 import unicodedata
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Iterator, Mapping, Sequence
 
 
 SOURCE_COLUMNS = ("entity_id", "business_name", "business_address", "country")
@@ -54,12 +54,62 @@ def normalize_text(value: object) -> str:
     return "".join(output).strip()
 
 
-def _validate_header(fieldnames: Sequence[str] | None, path: Path) -> None:
+def load_equivalences(path: Path) -> dict[str, dict[str, str]]:
+    """Load and flatten the accepted name/address token mappings."""
+
+    mappings: dict[str, dict[str, str]] = {"name": {}, "address": {}}
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        _validate_header_subset(reader.fieldnames, ("field", "variant", "canonical"), path)
+        for row_number, row in enumerate(reader, start=2):
+            field = row["field"]
+            if field not in mappings:
+                raise ValueError(f"{path}: row {row_number} has unsupported field {field!r}")
+            variant = row["variant"].strip()
+            canonical = row["canonical"].strip()
+            if not variant:
+                raise ValueError(f"{path}: row {row_number} has an empty variant")
+            if variant == canonical:
+                continue
+            mappings[field][variant] = canonical
+
+    for field, mapping in mappings.items():
+        for variant in tuple(mapping):
+            target = mapping[variant]
+            seen = {variant}
+            while target and target in mapping:
+                if target in seen:
+                    chain = " -> ".join((*seen, target))
+                    raise ValueError(f"{path}: cyclic {field} mapping detected: {chain}")
+                seen.add(target)
+                target = mapping[target]
+            mapping[variant] = target
+    return mappings
+
+
+def apply_equivalences(text: str, mapping: Mapping[str, str]) -> str:
+    """Apply complete-token mappings and omit tokens mapped to the empty string."""
+
+    if not text or not mapping:
+        return text
+    tokens = (mapping.get(token, token) for token in text.split())
+    return " ".join(token for token in tokens if token)
+
+
+def _validate_header_subset(
+    fieldnames: Sequence[str] | None,
+    required: Sequence[str],
+    path: Path,
+) -> None:
     if fieldnames is None:
         raise ValueError(f"{path}: missing TSV header")
-    missing = [column for column in SOURCE_COLUMNS if column not in fieldnames]
+    missing = [column for column in required if column not in fieldnames]
     if missing:
         raise ValueError(f"{path}: missing required columns: {', '.join(missing)}")
+
+
+def _validate_header(fieldnames: Sequence[str] | None, path: Path) -> None:
+    _validate_header_subset(fieldnames, SOURCE_COLUMNS, path)
 
 
 def iter_source_rows(path: Path, max_rows: int | None = None) -> Iterator[dict[str, str]]:
@@ -79,6 +129,7 @@ def iter_source_rows(path: Path, max_rows: int | None = None) -> Iterator[dict[s
 def transform_file(
     input_path: Path,
     output_path: Path,
+    mappings: Mapping[str, Mapping[str, str]] | None = None,
     max_rows: int | None = None,
     overwrite: bool = False,
 ) -> dict[str, object]:
@@ -91,6 +142,7 @@ def transform_file(
     rows = 0
     empty_names = 0
     empty_addresses = 0
+    active_mappings = mappings or {"name": {}, "address": {}}
     try:
         with temporary.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(
@@ -101,8 +153,14 @@ def transform_file(
             )
             writer.writeheader()
             for row in iter_source_rows(input_path, max_rows=max_rows):
-                clean_name = normalize_text(row["business_name"])
-                clean_address = normalize_text(row["business_address"])
+                clean_name = apply_equivalences(
+                    normalize_text(row["business_name"]),
+                    active_mappings.get("name", {}),
+                )
+                clean_address = apply_equivalences(
+                    normalize_text(row["business_address"]),
+                    active_mappings.get("address", {}),
+                )
                 writer.writerow({**row, "clean_name": clean_name, "clean_address": clean_address})
                 rows += 1
                 empty_names += not bool(clean_name)
@@ -154,6 +212,7 @@ def transform_all(
     data_dir: Path,
     output_dir: Path,
     report_path: Path,
+    equivalence_path: Path | None = None,
     max_rows_per_file: int | None = None,
     overwrite: bool = False,
     skip_disk_check: bool = False,
@@ -166,10 +225,12 @@ def transform_all(
     if max_rows_per_file is None and not skip_disk_check:
         ensure_output_capacity(data_dir, output_dir)
 
+    mappings = load_equivalences(equivalence_path) if equivalence_path else {"name": {}, "address": {}}
     reports = [
         transform_file(
             data_dir / relative_path,
             output_dir / relative_path,
+            mappings=mappings,
             max_rows=max_rows_per_file,
             overwrite=overwrite,
         )
@@ -180,7 +241,10 @@ def transform_all(
             "unicode_form": "NFKC",
             "case_operation": "casefold",
             "retained_unicode_categories": ["L*", "M*", "N*"],
-            "semantic_rewrites": False,
+            "semantic_rewrites": equivalence_path is not None,
+            "equivalence_path": str(equivalence_path) if equivalence_path else None,
+            "name_mapping_count": len(mappings["name"]),
+            "address_mapping_count": len(mappings["address"]),
         },
         "files": reports,
         "total_rows": sum(int(report["rows"]) for report in reports),
@@ -201,6 +265,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-dir", type=Path, required=True, help="Directory containing train/ and test/")
     parser.add_argument("--output-dir", type=Path, required=True, help="Destination for normalized TSV files")
     parser.add_argument("--report-path", type=Path, required=True, help="Destination for the normalization report")
+    parser.add_argument(
+        "--equivalence-path",
+        type=Path,
+        help="Accepted equivalence TSV produced by src.mine_equivalences",
+    )
     parser.add_argument("--max-rows-per-file", type=_positive_int, help="Limit rows per file for smoke tests")
     parser.add_argument("--overwrite", action="store_true", help="Replace existing normalized outputs")
     parser.add_argument(
@@ -217,6 +286,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         data_dir=args.data_dir,
         output_dir=args.output_dir,
         report_path=args.report_path,
+        equivalence_path=args.equivalence_path,
         max_rows_per_file=args.max_rows_per_file,
         overwrite=args.overwrite,
         skip_disk_check=args.skip_disk_check,

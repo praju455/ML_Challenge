@@ -48,10 +48,10 @@ Development and deterministic sample tests run locally. Full normalization, FAIS
 ## Progress
 
 - [x] Phase 0: inspect real files, sizes, schemas, countries, match multiplicity, and noise.
-- [ ] Phase 1: chunked normalization and automatic equivalence mining.
+- [x] Phase 1: chunked normalization and automatic equivalence mining.
   - [x] Phase 1A: safe, chunked Unicode base normalization.
   - [x] Phase 1B: evidence-based automatic equivalence mining.
-  - [ ] Phase 1C: apply accepted mappings and validate normalized outputs.
+  - [x] Phase 1C: apply accepted mappings and validate normalized outputs.
 - [ ] Phase 2: four-strategy blocking and blocking diagnostics.
 - [ ] Phase 3: pairwise feature generation.
 - [ ] Phase 4: calibrated classifier training and F0.5 threshold tuning.
@@ -91,4 +91,15 @@ python3 -m src.mine_equivalences \
   --database-path data/interim/equivalence_records.sqlite \
   --output-path artifacts/normalization/full/token_equivalences.tsv \
   --report-path artifacts/normalization/full/equivalence_report.json
+```
+
+Apply the accepted table to produce the final normalized files:
+
+```bash
+cd code/business_entity_resolution
+python3 -m src.normalize \
+  --data-dir ../../student_resource/dataset \
+  --output-dir data/processed/final \
+  --report-path artifacts/normalization/final/report.json \
+  --equivalence-path artifacts/normalization/full/token_equivalences.tsv
 ```

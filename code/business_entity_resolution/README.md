@@ -60,3 +60,17 @@ python3 -m src.mine_equivalences \
 ```
 
 The SQLite index is resumable at source-file boundaries. Keep it on the strong machine; it is generated data and is ignored by Git.
+
+### Apply the accepted mappings
+
+Generate the final normalized files from the original inputs after mining finishes:
+
+```bash
+python3 -m src.normalize \
+  --data-dir ../../student_resource/dataset \
+  --output-dir data/processed/final \
+  --report-path artifacts/normalization/final/report.json \
+  --equivalence-path artifacts/normalization/full/token_equivalences.tsv
+```
+
+The report records the exact mapping path and the number of name and address mappings applied. Token mappings are bounded to complete tokens, mapping chains are flattened, deletion mappings are supported, and cycles are rejected.
