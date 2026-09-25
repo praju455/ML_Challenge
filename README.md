@@ -43,7 +43,7 @@ The supplied competition files are expected under `student_resource/` at the rep
 
 ## Compute split
 
-Development and deterministic sample tests run locally. Full normalization, FAISS indexing, feature generation, training, calibration, stress testing, and test inference run on the stronger teammate machine. This avoids producing multi-gigabyte intermediate files on the local 16 GB Mac.
+Development and deterministic sample tests run locally. Full normalization and later compute-heavy stages run as short-lived SageMaker jobs against S3; the teammate can monitor or reproduce those jobs. This avoids producing multi-gigabyte intermediate files on the local 16 GB Mac and avoids paying for an always-on endpoint.
 
 ## Progress
 
@@ -52,6 +52,7 @@ Development and deterministic sample tests run locally. Full normalization, FAIS
   - [x] Phase 1A: safe, chunked Unicode base normalization.
   - [x] Phase 1B: evidence-based automatic equivalence mining.
   - [x] Phase 1C: apply accepted mappings and validate normalized outputs.
+  - [x] Phase 1D: cost-guarded SageMaker Processing launcher (full run pending on AWS).
 - [ ] Phase 2: four-strategy blocking and blocking diagnostics.
 - [ ] Phase 3: pairwise feature generation.
 - [ ] Phase 4: calibrated classifier training and F0.5 threshold tuning.
@@ -80,6 +81,8 @@ python3 -m src.normalize \
 ```
 
 See `code/business_entity_resolution/README.md` for the full-data command and normalization behavior. Commands for later phases will be added only after their implementations and tests pass.
+
+The AWS launcher is dry-run by default and requires an explicit `--execute` before it can upload code or start a billable Processing job. See the pipeline README for S3 layout, smoke-job, full-job, and shutdown instructions.
 
 After the full normalized training files exist on the strong machine, mine token equivalences from true matched pairs:
 

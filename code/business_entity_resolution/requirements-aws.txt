@@ -1,0 +1,3 @@
+# Installed only in the small Studio control environment used to submit managed jobs.
+# Phase 1 processing itself still uses only Python's standard library.
+sagemaker==2.257.6
