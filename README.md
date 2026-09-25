@@ -53,7 +53,7 @@ Development and deterministic sample tests run locally. Full normalization and l
   - [x] Phase 1B: evidence-based automatic equivalence mining.
   - [x] Phase 1C: apply accepted mappings and validate normalized outputs.
   - [x] Phase 1D: cost-guarded SageMaker Processing launcher (full run pending on AWS).
-- [ ] Phase 2: four-strategy blocking and blocking diagnostics.
+- [ ] Phase 2: four-strategy blocking and blocking diagnostics (local implementation under test).
 - [ ] Phase 3: pairwise feature generation.
 - [ ] Phase 4: calibrated classifier training and F0.5 threshold tuning.
 - [ ] Phase 5: exact metric and country-generalization stress test.

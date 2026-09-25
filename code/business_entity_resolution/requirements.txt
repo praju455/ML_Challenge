@@ -1,2 +1,6 @@
-# Phase 1 normalization uses only the Python standard library.
-# Pinned runtime dependencies will be added when their consuming phases are implemented.
+# Phase 2 blocking dependencies. Install on the strong machine or a bounded
+# SageMaker Processing job; they are not required for Phase 1 normalization.
+numpy==1.26.4
+scikit-learn==1.5.2
+Metaphone==0.6
+faiss-cpu==1.8.0.post1

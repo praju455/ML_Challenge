@@ -75,6 +75,51 @@ python3 -m src.normalize \
 
 The report records the exact mapping path and the number of name and address mappings applied. Token mappings are bounded to complete tokens, mapping chains are flattened, deletion mappings are supported, and cycles are rejected.
 
+## Phase 2: unioned blocking
+
+`src/blocking.py` produces one tab-separated candidate-list row for every Source-1
+entity. It unions four independent strategies: token-sort sorted neighbourhood,
+Double Metaphone over leading name tokens, character n-gram TF-IDF neighbours, and
+MinHash LSH over name-and-address shingles. Country is not a blocking key.
+
+For bounded local samples, character neighbours use exact sklearn brute-force cosine
+search. At the real target scale, the same module switches to compressed FAISS IVF
+search. Install the pinned Phase 2 dependencies before running either path:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+After Phase 1 has produced final normalized files, run a small local smoke test:
+
+```bash
+python3 -m src.blocking \
+  --source1-path data/processed/final/train/train_source1.tsv \
+  --target-path data/processed/final/train/train_source2.tsv \
+  --target-path data/processed/final/train/train_source3.tsv \
+  --output-path output/train_candidate_lists.sample.tsv \
+  --database-path data/interim/blocking.sample.sqlite \
+  --report-path artifacts/blocking/sample/report.json \
+  --max-rows-per-file 1000 \
+  --rebuild-index
+```
+
+Measure the candidate-set recall ceiling before training any classifier. The evaluator
+uses a deterministic Source-1-level validation split, so all matches for an entity
+remain in the same split:
+
+```bash
+python3 -m src.eval_blocking \
+  --ground-truth-path ../../student_resource/dataset/train/train_ground_truth.tsv \
+  --candidate-path output/train_candidate_lists.sample.tsv \
+  --target-count 2000 \
+  --report-path artifacts/blocking/sample/evaluation.json
+```
+
+Do not compare candidate diagnostics from a truncated sample to a full-data score.
+Use the full target count and candidate file for the final blocking recall ceiling and
+reduction ratio.
+
 ## Run Phase 1 with SageMaker Processing
 
 SageMaker Studio is the control plane only. Phase 1 runs as a finite Processing job, writes its results to S3, and releases its instance automatically. It does not create a model endpoint.
@@ -106,7 +151,7 @@ The isolated environment avoids replacing the SageMaker SDK bundled with Studio.
 Create a private S3 bucket in `ap-south-1`. The input prefix must have this exact shape:
 
 ```text
-s3://YOUR_BUCKET/raw/dataset/
+s3://YOUR_BUCKET/raw/
 ├── train/
 │   ├── train_source1.tsv
 │   ├── train_source2.tsv
@@ -121,7 +166,7 @@ s3://YOUR_BUCKET/raw/dataset/
 From a machine with the AWS CLI configured, upload only the competition files:
 
 ```bash
-aws s3 sync ../../student_resource/dataset s3://YOUR_BUCKET/raw/dataset \
+aws s3 sync ../../student_resource/dataset s3://YOUR_BUCKET/raw \
   --region ap-south-1 \
   --exclude "*" \
   --include "train/*.tsv" \
@@ -137,7 +182,7 @@ Copy the execution-role ARN from the SageMaker domain or user profile. This comm
 ```bash
 python3 -m aws.submit_phase1 \
   --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_SAGEMAKER_ROLE \
-  --input-s3-uri s3://YOUR_BUCKET/raw/dataset \
+  --input-s3-uri s3://YOUR_BUCKET/raw \
   --output-s3-prefix s3://YOUR_BUCKET/runs/phase1 \
   --smoke-rows 1000 \
   --job-name entity-resolution-phase1-smoke
@@ -152,7 +197,7 @@ Add `--execute` only after reviewing the dry-run plan:
 ```bash
 python3 -m aws.submit_phase1 \
   --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_SAGEMAKER_ROLE \
-  --input-s3-uri s3://YOUR_BUCKET/raw/dataset \
+  --input-s3-uri s3://YOUR_BUCKET/raw \
   --output-s3-prefix s3://YOUR_BUCKET/runs/phase1 \
   --smoke-rows 1000 \
   --job-name entity-resolution-phase1-smoke \
@@ -168,7 +213,7 @@ Use a new job name and omit `--smoke-rows`:
 ```bash
 python3 -m aws.submit_phase1 \
   --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_SAGEMAKER_ROLE \
-  --input-s3-uri s3://YOUR_BUCKET/raw/dataset \
+  --input-s3-uri s3://YOUR_BUCKET/raw \
   --output-s3-prefix s3://YOUR_BUCKET/runs/phase1 \
   --job-name entity-resolution-phase1-full-v1 \
   --execute
