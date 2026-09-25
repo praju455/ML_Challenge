@@ -10,6 +10,12 @@ Normalization uses Unicode NFKC, Unicode case folding, whitespace collapse, and 
 
 Outputs are written atomically, and existing files are not replaced unless `--overwrite` is provided.
 
+## Phase 1B: evidence-based equivalence mining
+
+`src/mine_equivalences.py` builds a resumable, disk-backed SQLite index of the three normalized training sources. It then examines true Source-1-to-Source-2/3 match edges and records cases where the matched records differ by exactly one token. Repeated substitution or optional-token evidence is combined with full-corpus token frequencies before a mapping is accepted.
+
+This design learns mappings from the data without a hand-written suffix list. It also prevents spelling-only guesses such as rewriting `lake` as `lakeside`.
+
 ### Run tests
 
 ```bash
@@ -41,3 +47,16 @@ python3 -m src.normalize \
 The full command checks free disk space before scanning. It will stop early if a complete normalized copy would leave insufficient space. Use `--skip-disk-check` only after manually verifying that the destination has enough capacity.
 
 Generated outputs are intentionally ignored by Git. The JSON report records normalization behavior, row counts, missing clean fields, and output paths.
+
+After the normalized files exist on the strong machine, mine the equivalence table:
+
+```bash
+python3 -m src.mine_equivalences \
+  --normalized-data-dir data/processed/full \
+  --ground-truth-path ../../student_resource/dataset/train/train_ground_truth.tsv \
+  --database-path data/interim/equivalence_records.sqlite \
+  --output-path artifacts/normalization/full/token_equivalences.tsv \
+  --report-path artifacts/normalization/full/equivalence_report.json
+```
+
+The SQLite index is resumable at source-file boundaries. Keep it on the strong machine; it is generated data and is ignored by Git.
