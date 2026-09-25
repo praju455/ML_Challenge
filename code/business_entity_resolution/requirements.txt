@@ -1,0 +1,2 @@
+# Phase 1 normalization uses only the Python standard library.
+# Pinned runtime dependencies will be added when their consuming phases are implemented.

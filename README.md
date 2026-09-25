@@ -49,10 +49,33 @@ Development and deterministic sample tests run locally. Full normalization, FAIS
 
 - [x] Phase 0: inspect real files, sizes, schemas, countries, match multiplicity, and noise.
 - [ ] Phase 1: chunked normalization and automatic equivalence mining.
+  - [x] Phase 1A: safe, chunked Unicode base normalization.
+  - [ ] Phase 1B: evidence-based automatic equivalence mining.
 - [ ] Phase 2: four-strategy blocking and blocking diagnostics.
 - [ ] Phase 3: pairwise feature generation.
 - [ ] Phase 4: calibrated classifier training and F0.5 threshold tuning.
 - [ ] Phase 5: exact metric and country-generalization stress test.
 - [ ] Phase 6: test inference and submission validation.
 
-Exact run commands will be added as their corresponding modules are implemented and verified.
+## Current commands
+
+Run the normalization tests:
+
+```bash
+cd code/business_entity_resolution
+python3 -m unittest discover -s tests -v
+```
+
+Run a bounded normalization smoke test against the supplied data:
+
+```bash
+cd code/business_entity_resolution
+python3 -m src.normalize \
+  --data-dir ../../student_resource/dataset \
+  --output-dir data/processed/sample \
+  --report-path artifacts/normalization/sample/report.json \
+  --max-rows-per-file 1000 \
+  --overwrite
+```
+
+See `code/business_entity_resolution/README.md` for the full-data command and normalization behavior. Commands for later phases will be added only after their implementations and tests pass.
