@@ -1,0 +1,35 @@
+# macOS and editor metadata
+.DS_Store
+.idea/
+.vscode/
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Supplied challenge data stays local
+/student_resource/
+
+# Generated data, indices, models, and submissions
+**/data/processed/
+**/data/interim/
+**/artifacts/
+**/output/
+**/logs/
+*.faiss
+*.index
+*.joblib
+*.pkl
+
+# Temporary shard and partial-run files
+*.tmp
+*.partial
+*.tsv.gz
+
