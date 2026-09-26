@@ -203,6 +203,23 @@ python3 -m src.train \
   --sample-fraction 0.05
 ```
 
+Score blank-labeled test features and validate before any upload:
+
+```bash
+python3 -m src.predict \
+  --feature-path output/test_pair_features.tsv \
+  --model-path artifacts/models/lightgbm.joblib \
+  --test-source1 ../../student_resource/dataset/test/test_source1.tsv \
+  --test-source2 ../../student_resource/dataset/test/test_source2.tsv \
+  --test-source3 ../../student_resource/dataset/test/test_source3.tsv \
+  --candidate-pairs output/candidate_pairs.tsv \
+  --output-path output/matching_results.tsv \
+  --work-dir data/interim/submission_validation \
+  --report-path artifacts/prediction/report.json
+```
+
+Upload only when the printed validation status is `PASS`.
+
 ## Submission validation
 
 Only `matching_results.tsv` is uploaded to the leaderboard. Run this check before
