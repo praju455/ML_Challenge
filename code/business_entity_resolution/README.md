@@ -168,6 +168,24 @@ python3 -m src.features \
   --rebuild-target-index
 ```
 
+## Phase 5: exact validation metric
+
+`src/metric.py` implements the competition metric used to choose every model
+threshold: macro-averaged per-Source-1 F0.5. A correct empty match list scores `1.0`;
+an incorrect empty/non-empty decision scores `0.0`; and any false positive on a true
+singleton scores `0.0`. It refuses duplicate, missing, or unexpected Source-1 rows so
+a partial artifact cannot look like a valid validation result.
+
+Run it only on a held-out training prediction file with the same Source-1 coverage as
+the supplied truth file:
+
+```bash
+python3 -m src.metric \
+  --ground-truth-path ../../student_resource/dataset/train/train_ground_truth.tsv \
+  --prediction-path output/validation_matching_results.tsv \
+  --report-path artifacts/validation/metric.json
+```
+
 ## Submission validation
 
 Only `matching_results.tsv` is uploaded to the leaderboard. Run this check before
