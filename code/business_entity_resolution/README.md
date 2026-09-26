@@ -186,6 +186,23 @@ python3 -m src.metric \
   --report-path artifacts/validation/metric.json
 ```
 
+## Phase 4: local model training
+
+After train blocking has passed its recall diagnostic and labeled feature rows exist,
+fit the local model. The default reads a deterministic 5% Source-1-level sample so
+all candidate pairs for a sampled entity stay together. Train, calibration, and
+threshold-tuning entity groups are disjoint. Increase `--sample-fraction` only after
+the small run fits comfortably in the second laptop's RAM.
+
+```bash
+python3 -m src.train \
+  --feature-path output/train_pair_features.tsv \
+  --ground-truth-path ../../student_resource/dataset/train/train_ground_truth.tsv \
+  --model-path artifacts/models/lightgbm.joblib \
+  --report-path artifacts/models/train_report.json \
+  --sample-fraction 0.05
+```
+
 ## Submission validation
 
 Only `matching_results.tsv` is uploaded to the leaderboard. Run this check before

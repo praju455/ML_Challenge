@@ -5,3 +5,5 @@ scikit-learn==1.5.2
 Metaphone==0.6
 faiss-cpu==1.8.0.post1
 rapidfuzz==3.9.7
+lightgbm==4.5.0
+joblib==1.4.2
