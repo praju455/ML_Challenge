@@ -120,6 +120,54 @@ Do not compare candidate diagnostics from a truncated sample to a full-data scor
 Use the full target count and candidate file for the final blocking recall ceiling and
 reduction ratio.
 
+## Phase 3: pair features
+
+`src/features.py` turns the Phase-2 candidate lists into one deterministic feature
+row per candidate pair. Its fixed TSV schema contains IDs, an `is_match` label
+column, fuzzy name/address similarity, token and character n-gram overlap, numeric
+overlap, structural ratios, and `country_equal`. For test data `is_match` is blank;
+for training data it is `0` or `1` from ground truth. Country is a feature only and
+never filters candidates.
+
+The generator streams Source-1 and candidate rows in lockstep, so it rejects missing,
+reordered, duplicate, or unknown candidate IDs before model training. Target records
+and optional truth edges are stored in generated SQLite indices rather than loaded
+into memory. These indices, feature TSVs, and reports are generated artifacts and
+must remain outside Git.
+
+Create labeled training features only after the full train blocking file meets the
+recall-ceiling target:
+
+```bash
+python3 -m src.features \
+  --source1-path data/processed/final/train/train_source1.tsv \
+  --target-path data/processed/final/train/train_source2.tsv \
+  --target-path data/processed/final/train/train_source3.tsv \
+  --candidate-path output/train_candidate_pairs.tsv \
+  --ground-truth-path ../../student_resource/dataset/train/train_ground_truth.tsv \
+  --output-path output/train_pair_features.tsv \
+  --target-database-path data/interim/features/train_targets.sqlite \
+  --truth-database-path data/interim/features/train_truth.sqlite \
+  --report-path artifacts/features/train/report.json \
+  --rebuild-target-index \
+  --rebuild-truth-index
+```
+
+Generate test features with the identical schema after the trained candidate contract
+has passed validation. The blank `is_match` column is intentional:
+
+```bash
+python3 -m src.features \
+  --source1-path data/processed/final/test/test_source1.tsv \
+  --target-path data/processed/final/test/test_source2.tsv \
+  --target-path data/processed/final/test/test_source3.tsv \
+  --candidate-path output/candidate_pairs.tsv \
+  --output-path output/test_pair_features.tsv \
+  --target-database-path data/interim/features/test_targets.sqlite \
+  --report-path artifacts/features/test/report.json \
+  --rebuild-target-index
+```
+
 ## Submission validation
 
 Only `matching_results.tsv` is uploaded to the leaderboard. Run this check before
