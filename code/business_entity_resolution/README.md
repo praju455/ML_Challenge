@@ -120,6 +120,27 @@ Do not compare candidate diagnostics from a truncated sample to a full-data scor
 Use the full target count and candidate file for the final blocking recall ceiling and
 reduction ratio.
 
+## Submission validation
+
+Only `matching_results.tsv` is uploaded to the leaderboard. Run this check before
+every upload. It rejects candidate files, incomplete Source-1 coverage, unknown
+target IDs, duplicate rows, duplicate IDs within a prediction, and predictions that
+were not present in the supplied candidate set.
+
+```bash
+python3 -m utils.validate_submission \
+  --matching-results output/matching_results.tsv \
+  --candidate-pairs output/candidate_pairs.tsv \
+  --test-source1 ../../student_resource/dataset/test/test_source1.tsv \
+  --test-source2 ../../student_resource/dataset/test/test_source2.tsv \
+  --test-source3 ../../student_resource/dataset/test/test_source3.tsv \
+  --work-dir data/interim/submission_validation \
+  --report-path artifacts/submission_validation.json
+```
+
+Upload only when the command prints `"status": "PASS"`. `candidate_pairs.tsv` is
+kept for the final package and must never be uploaded as `matching_results.tsv`.
+
 ## Run Phase 1 with SageMaker Processing
 
 SageMaker Studio is the control plane only. Phase 1 runs as a finite Processing job, writes its results to S3, and releases its instance automatically. It does not create a model endpoint.

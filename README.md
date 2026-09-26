@@ -57,6 +57,7 @@ Development and deterministic sample tests run locally. Full normalization and l
 - [ ] Phase 3: pairwise feature generation.
 - [ ] Phase 4: calibrated classifier training and F0.5 threshold tuning.
 - [ ] Phase 5: exact metric and country-generalization stress test.
+  - [x] Submission-format validator: full Source-1 coverage, valid target IDs, candidate-set containment, and duplicate checks.
 - [ ] Phase 6: test inference and submission validation.
 
 ## Current commands
